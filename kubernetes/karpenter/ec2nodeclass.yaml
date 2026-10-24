@@ -1,0 +1,16 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: gpu
+spec:
+  amiFamily: AL2
+  role: olympus-eks-eks-node
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: olympus-eks
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: olympus-eks
+  tags:
+    Name: olympus-eks-gpu-node
+    Project: olympus-eks

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-config
+  namespace: olympus
+data:
+  config.yaml: |
+    model_list:
+      - model_name: mistral-7b
+        litellm_params:
+          model: openai/mistralai/Mistral-7B-Instruct-v0.3
+          api_base: http://vllm:8000/v1
+          api_key: none
+    general_settings:
+      master_key: os.environ/LITELLM_MASTER_KEY

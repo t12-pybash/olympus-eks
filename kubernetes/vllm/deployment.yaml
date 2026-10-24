@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+  namespace: olympus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+    spec:
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      nodeSelector:
+        role: gpu
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.6.3
+          args:
+            - --model
+            - mistralai/Mistral-7B-Instruct-v0.3
+            - --tensor-parallel-size
+            - "1"
+            - --port
+            - "8000"
+            - --max-model-len
+            - "8192"
+          ports:
+            - containerPort: 8000
+              name: http
+          resources:
+            requests:
+              nvidia.com/gpu: "1"
+              memory: "20Gi"
+              cpu: "4"
+            limits:
+              nvidia.com/gpu: "1"
+              memory: "24Gi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 120
+            periodSeconds: 30
+          env:
+            - name: HUGGING_FACE_HUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vllm-secrets
+                  key: hf-token
