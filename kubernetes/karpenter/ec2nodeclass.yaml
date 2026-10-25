@@ -4,6 +4,8 @@ metadata:
   name: gpu
 spec:
   amiFamily: AL2
+  amiSelectorTerms:
+    - alias: al2@latest
   role: olympus-eks-eks-node
   subnetSelectorTerms:
     - tags:

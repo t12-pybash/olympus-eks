@@ -21,7 +21,7 @@ resource "aws_iam_role" "karpenter" {
 }
 
 resource "aws_iam_role_policy" "karpenter" {
-  name = "${var.cluster_nam
+  name = "${var.cluster_name}-karpenter"
   role = aws_iam_role.karpenter.id
 
   policy = jsonencode({
@@ -31,53 +31,61 @@ resource "aws_iam_role_policy" "karpenter" {
         Effect = "Allow"
         Action = [
           "ec2:CreateLaunchTemplate",
-          "ec2:CreateFleet"
+          "ec2:CreateFleet",
           "ec2:RunInstances",
           "ec2:CreateTags",
           "ec2:TerminateInstances",
-          "ec2:DescribeLaun
+          "ec2:DeleteLaunchTemplate",
+          "ec2:DescribeLaunchTemplates",
+          "ec2:DescribeImages",
           "ec2:DescribeInstances",
-          "ec2:DescribeSecu
+          "ec2:DescribeSecurityGroups",
           "ec2:DescribeSubnets",
-          "ec2:DescribeInst
+          "ec2:DescribeInstanceTypes",
           "ec2:DescribeInstanceTypeOfferings",
-          "ec2:DescribeAvai
+          "ec2:DescribeAvailabilityZones",
           "ec2:DescribeSpotPriceHistory",
-          "pricing:GetProdu
+          "pricing:GetProducts",
           "ssm:GetParameter",
+          "iam:GetInstanceProfile",
+          "iam:CreateInstanceProfile",
+          "iam:DeleteInstanceProfile",
+          "iam:AddRoleToInstanceProfile",
+          "iam:RemoveRoleFromInstanceProfile",
+          "iam:TagInstanceProfile",
         ]
         Resource = "*"
       },
       {
         Effect   = "Allow"
         Action   = ["iam:PassRole"]
-        Resource = var.node
+        Resource = var.node_role_arn
       }
     ]
   })
 }
 
-# Karpenter installed via H
+# Karpenter installed via Helm
 resource "helm_release" "karpenter" {
-  name             = "karpe
+  name             = "karpenter"
   namespace        = "karpenter"
   create_namespace = true
   repository       = "oci://public.ecr.aws/karpenter"
-  chart            = "karpe
+  chart            = "karpenter"
   version          = "1.0.0"
 
   set {
-    name  = "settings.clust
+    name  = "settings.clusterName"
     value = var.cluster_name
   }
 
   set {
     name  = "settings.clusterEndpoint"
-    value = var.cluster_end
+    value = var.cluster_endpoint
   }
 
   set {
-    name  = "serviceAccount\.com/role-arn"
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
     value = aws_iam_role.karpenter.arn
   }
 }

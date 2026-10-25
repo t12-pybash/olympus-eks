@@ -18,19 +18,19 @@ spec:
         - key: nvidia.com/gpu
           operator: Exists
           effect: NoSchedule
-      priorityClassName: sy
+      priorityClassName: system-node-critical
       containers:
-        - name: nvidia-devi
+        - name: nvidia-device-plugin
           image: nvcr.io/nvidia/k8s-device-plugin:v0.16.2
           env:
             - name: FAIL_ON_INIT_ERROR
-              value: "false
+              value: "false"
           securityContext:
-            allowPrivilegeE
+            allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
           volumeMounts:
-            - name: device-
+            - name: device-plugin
               mountPath: /var/lib/kubelet/device-plugins
       volumes:
         - name: device-plugin

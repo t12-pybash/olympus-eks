@@ -30,4 +30,3 @@ spec:
   disruption:
     consolidationPolicy: WhenEmpty
     consolidateAfter: 30s
-    expireAfter: 24h

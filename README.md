@@ -110,7 +110,74 @@ Cost
 
 ---
 
-Related
+## Deployment Notes
+
+Real-world gotchas from the initial deploy — documented so the second run is clean.
+
+### AWS account setup (new accounts)
+
+- **Upgrade to paid plan** before applying — the free plan blocks t3.medium and all G instances
+- **Request GPU quotas in the correct region** (eu-west-1) before running `terraform apply`:
+  - Service Quotas → EC2 → *Running On-Demand G and VT instances* → request 4 vCPUs
+  - Service Quotas → EC2 → *All G and VT Spot Instance Requests* → request 4 vCPUs
+  - New accounts are denied by default; appeal with a use case description — approved same day
+- **Create EC2 Spot service-linked role** — new accounts don't have it:
+  ```bash
+  aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
+  ```
+
+### Security group tag (required for Karpenter)
+
+Terraform does not tag the EKS cluster security group with `karpenter.sh/discovery`. Do it manually after `terraform apply`:
+
+```bash
+SG_ID=$(aws eks describe-cluster --name olympus-eks --region eu-west-1 \
+  --query 'cluster.resourcesVpcConfig.clusterSecurityGroupId' --output text)
+aws ec2 create-tags \
+  --resources $SG_ID \
+  --tags Key=karpenter.sh/discovery,Value=olympus-eks \
+  --region eu-west-1
+```
+
+Without this tag, the EC2NodeClass stays `SecurityGroupsReady=False` and Karpenter never provisions GPU nodes.
+
+### Secrets (create before applying manifests)
+
+```bash
+kubectl create secret generic vllm-secrets \
+  --namespace olympus \
+  --from-literal=hf-token=YOUR_HF_TOKEN
+
+kubectl create secret generic litellm-secrets \
+  --namespace olympus \
+  --from-literal=master-key=sk-olympus-$(openssl rand -hex 16)
+```
+
+HuggingFace token requires access to `mistralai/Mistral-7B-Instruct-v0.3` — accept the model license at huggingface.co first.
+
+### Karpenter Helm timeout
+
+Terraform's Helm provider times out at 5 minutes; Karpenter pods take longer to pass readiness on first install. The timeout error is a false alarm — check pod status directly:
+
+```bash
+kubectl get pods -n karpenter
+```
+
+If both pods are `1/1 Running`, Karpenter is healthy. Re-run `terraform apply` to clear the state error.
+
+### Correct manifest apply order
+
+```bash
+kubectl apply -f kubernetes/vllm/namespace.yaml   # namespace first
+kubectl apply -f kubernetes/karpenter/             # NodePool + EC2NodeClass
+kubectl apply -f kubernetes/nvidia/                # device plugin DaemonSet
+kubectl apply -f kubernetes/vllm/                  # vLLM deployment
+kubectl apply -f kubernetes/litellm/               # LiteLLM deployment
+```
+
+---
+
+## Related
 
 - Argus — autonomous SRE agent for the Olympus platform
 - t-12.io — write-ups on the full stack

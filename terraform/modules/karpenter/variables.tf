@@ -24,12 +24,12 @@ variable "node_role_arn" {
 }
 
 variable "private_subnet_ids" {
-  description = "Private su
+  description = "Private subnet IDs for Karpenter node provisioning"
   type        = list(string)
 }
 
-variable "gpu_instance_type
+variable "gpu_instance_types" {
   description = "GPU instance types for the NodePool"
-  type        = list(string
+  type        = list(string)
   default     = ["g4dn.xlarge", "g4dn.2xlarge"]
 }

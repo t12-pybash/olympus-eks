@@ -23,7 +23,7 @@ variable "kubernetes_version" {
 }
 
 variable "gpu_instance_types" {
-  description = "GPU instanol"
+  description = "GPU instance types for Karpenter NodePool"
   type        = list(string)
-  default     = ["g4dn.xlar
+  default     = ["g4dn.xlarge", "g4dn.2xlarge"]
 }
