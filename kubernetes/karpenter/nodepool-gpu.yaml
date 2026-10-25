@@ -1,12 +1,12 @@
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: gpu
+  name: gpu-small
 spec:
   template:
     metadata:
       labels:
-        role: gpu
+        role: gpu-small
     spec:
       nodeClassRef:
         group: karpenter.k8s.aws
