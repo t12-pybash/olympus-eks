@@ -13,7 +13,7 @@ data:
           api_key: none
       - model_name: llama-70b
         litellm_params:
-          model: openai/meta-llama/Llama-3-70B-Instruct
+          model: openai/meta-llama/Meta-Llama-3-70B-Instruct
           api_base: http://vllm-large:8000/v1
           api_key: none
     general_settings:
