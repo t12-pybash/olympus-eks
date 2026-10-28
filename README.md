@@ -175,7 +175,26 @@ kubectl apply -f kubernetes/vllm/                  # vLLM deployment
 kubectl apply -f kubernetes/litellm/               # LiteLLM deployment
 ```
 
----
+### Terraform state — use remote backend from day one
+
+In the first deployment of this cluster, Terraform state was stored locally (`terraform.tfstate` on disk). The state files were lost before teardown. Running `terraform destroy` returned "No changes. Resources: 0 destroyed." — because with an empty state, Terraform believes nothing exists.
+
+Manual teardown required deleting every resource individually through the AWS CLI:
+
+```bash
+# Order matters — dependencies must be deleted bottom-up
+kubectl delete nodeclaims --all
+aws eks delete-nodegroup --cluster-name olympus-eks --nodegroup-name olympus-eks-system --region eu-west-1
+aws eks wait nodegroup-deleted --cluster-name olympus-eks --nodegroup-name olympus-eks-system --region eu-west-1
+aws ec2 delete-nat-gateway --nat-gateway-id <nat-id> --region eu-west-1
+aws eks delete-cluster --name olympus-eks --region eu-west-1
+aws eks wait cluster-deleted --name olympus-eks --region eu-west-1
+# Then subnets, route tables, IGW, EIP, VPC in that order
+```
+
+This took 20 minutes and required looking up each resource ID from the AWS console.
+
+**Mitigation:** Bootstrap the S3 backend before running `terraform init`. The `Deploy` section above includes this as the first step. Never skip it — losing state means losing the ability to use Terraform for teardown.
 
 ## Related
 
