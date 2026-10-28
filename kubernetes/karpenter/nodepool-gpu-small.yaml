@@ -18,7 +18,7 @@ spec:
           values: ["spot", "on-demand"]
         - key: node.kubernetes.io/instance-type
           operator: In
-          values: ["g4dn.xlarge", "g4dn.2xlarge"]
+          values: ["g4dn.xlarge"]
         - key: kubernetes.io/arch
           operator: In
           values: ["amd64"]

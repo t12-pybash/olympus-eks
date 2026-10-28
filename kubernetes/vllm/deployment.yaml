@@ -5,6 +5,8 @@ metadata:
   namespace: olympus
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: vllm
@@ -13,6 +15,7 @@ spec:
       labels:
         app: vllm
     spec:
+      enableServiceLinks: false
       tolerations:
         - key: nvidia.com/gpu
           operator: Exists
@@ -24,24 +27,28 @@ spec:
           image: vllm/vllm-openai:v0.6.3
           args:
             - --model
-            - mistralai/Mistral-7B-Instruct-v0.3
+            - TheBloke/Mistral-7B-Instruct-v0.2-AWQ
+            - --quantization
+            - awq
             - --tensor-parallel-size
             - "1"
             - --port
             - "8000"
             - --max-model-len
             - "8192"
+            - --dtype
+            - half
           ports:
             - containerPort: 8000
               name: http
           resources:
             requests:
               nvidia.com/gpu: "1"
-              memory: "20Gi"
-              cpu: "4"
+              memory: "8Gi"
+              cpu: "2"
             limits:
               nvidia.com/gpu: "1"
-              memory: "24Gi"
+              memory: "14Gi"
           readinessProbe:
             httpGet:
               path: /health

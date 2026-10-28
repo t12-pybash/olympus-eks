@@ -13,6 +13,12 @@ spec:
   securityGroupSelectorTerms:
     - tags:
         karpenter.sh/discovery: olympus-eks
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 50Gi
+        volumeType: gp3
+        deleteOnTermination: true
   tags:
     Name: olympus-eks-gpu-node
     Project: olympus-eks

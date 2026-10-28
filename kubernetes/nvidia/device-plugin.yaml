@@ -37,4 +37,4 @@ spec:
           hostPath:
             path: /var/lib/kubelet/device-plugins
       nodeSelector:
-        role: gpu
+        role: gpu-small
