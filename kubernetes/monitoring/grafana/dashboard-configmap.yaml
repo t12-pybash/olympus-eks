@@ -67,7 +67,7 @@ data:
           "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
           "targets": [
             {"expr": "DCGM_FI_DEV_FB_FREE", "legendFormat": "free — {{node}}"},
-            {"expr": "DCGM_FI_DEV_MEM_USED", "legendFormat": "used — {{node}}"}
+            {"expr": "DCGM_FI_DEV_FB_USED", "legendFormat": "used — {{node}}"}
           ],
           "fieldConfig": {
             "defaults": {"unit": "decmbytes",

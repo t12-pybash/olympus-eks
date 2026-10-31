@@ -28,7 +28,7 @@ spec:
       priorityClassName: system-node-critical
       containers:
         - name: dcgm-exporter
-          image: nvcr.io/nvidia/k8s-dcgm-exporter:3.3.5-3.4.0-ubuntu22.04
+          image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04
           args:
             - --collectors=/etc/dcgm-exporter/dcgm-metrics.csv
             - --address=:9400
