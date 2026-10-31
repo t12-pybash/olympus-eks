@@ -64,6 +64,26 @@ resource "aws_iam_role_policy_attachment" "node_policies" {
   role       = aws_iam_role.node.name
 }
 
+resource "aws_iam_role_policy" "node_ecr_public" {
+  name = "${var.name}-node-ecr-public"
+  role = aws_iam_role.node.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "ecr-public:GetAuthorizationToken",
+        "ecr-public:BatchCheckLayerAvailability",
+        "ecr-public:GetDownloadUrlForLayer",
+        "ecr-public:BatchGetImage",
+        "sts:GetServiceBearerToken",
+      ]
+      Resource = "*"
+    }]
+  })
+}
+
 resource "aws_eks_node_group" "system" {
   cluster_name    = aws_eks_cluster.this.name
   node_group_name = "${var.name}-system"

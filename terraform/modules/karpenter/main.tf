@@ -72,7 +72,7 @@ resource "helm_release" "karpenter" {
   create_namespace = true
   repository       = "oci://public.ecr.aws/karpenter"
   chart            = "karpenter"
-  version          = "1.0.0"
+  version          = "1.2.0"
 
   set {
     name  = "settings.clusterName"
@@ -88,4 +88,7 @@ resource "helm_release" "karpenter" {
     name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
     value = aws_iam_role.karpenter.arn
   }
+
+  timeout           = 600
+  disable_webhooks  = true
 }
