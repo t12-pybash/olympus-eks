@@ -1,0 +1,214 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource
+  namespace: monitoring
+data:
+  prometheus.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus:9090
+        isDefault: true
+        access: proxy
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provision
+  namespace: monitoring
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: gpu-inference
+        folder: GPU Inference
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-gpu-inference-dashboard
+  namespace: monitoring
+data:
+  gpu-inference.json: |
+    {
+      "title": "GPU Inference Observability",
+      "uid": "gpu-inference",
+      "refresh": "15s",
+      "time": {"from": "now-1h", "to": "now"},
+      "panels": [
+        {
+          "id": 1,
+          "title": "GPU Utilization (%)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+          "targets": [{
+            "expr": "DCGM_FI_DEV_GPU_UTIL",
+            "legendFormat": "{{node}}"
+          }],
+          "fieldConfig": {
+            "defaults": {"unit": "percent", "min": 0, "max": 100,
+              "thresholds": {"steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 80},
+                {"color": "red", "value": 95}
+              ]}
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "VRAM Free (MiB)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+          "targets": [
+            {"expr": "DCGM_FI_DEV_FB_FREE", "legendFormat": "free — {{node}}"},
+            {"expr": "DCGM_FI_DEV_MEM_USED", "legendFormat": "used — {{node}}"}
+          ],
+          "fieldConfig": {
+            "defaults": {"unit": "decmbytes",
+              "thresholds": {"steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 512},
+                {"color": "green", "value": 2048}
+              ]}
+            }
+          }
+        },
+        {
+          "id": 3,
+          "title": "vLLM: Requests Running / Waiting",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+          "targets": [
+            {"expr": "vllm:num_requests_running", "legendFormat": "running"},
+            {"expr": "vllm:num_requests_waiting", "legendFormat": "queued"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "id": 4,
+          "title": "TTFT — Time to First Token (s)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, rate(vllm:time_to_first_token_seconds_bucket[5m]))",
+              "legendFormat": "p50"
+            },
+            {
+              "expr": "histogram_quantile(0.95, rate(vllm:time_to_first_token_seconds_bucket[5m]))",
+              "legendFormat": "p95"
+            },
+            {
+              "expr": "histogram_quantile(0.99, rate(vllm:time_to_first_token_seconds_bucket[5m]))",
+              "legendFormat": "p99"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {"unit": "s",
+              "thresholds": {"steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 2},
+                {"color": "red", "value": 5}
+              ]}
+            }
+          }
+        },
+        {
+          "id": 5,
+          "title": "KV Cache Usage (%)",
+          "type": "gauge",
+          "gridPos": {"h": 8, "w": 6, "x": 0, "y": 16},
+          "targets": [{
+            "expr": "vllm:gpu_cache_usage_perc * 100",
+            "legendFormat": "KV cache"
+          }],
+          "fieldConfig": {
+            "defaults": {"unit": "percent", "min": 0, "max": 100,
+              "thresholds": {"steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 70},
+                {"color": "red", "value": 90}
+              ]}
+            }
+          }
+        },
+        {
+          "id": 6,
+          "title": "GPU Power Draw (W)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 6, "x": 6, "y": 16},
+          "targets": [{
+            "expr": "DCGM_FI_DEV_POWER_USAGE",
+            "legendFormat": "{{node}}"
+          }],
+          "fieldConfig": {"defaults": {"unit": "watt"}}
+        },
+        {
+          "id": 7,
+          "title": "GPU Temperature (°C)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 6, "x": 12, "y": 16},
+          "targets": [{
+            "expr": "DCGM_FI_DEV_GPU_TEMP",
+            "legendFormat": "{{node}}"
+          }],
+          "fieldConfig": {
+            "defaults": {"unit": "celsius",
+              "thresholds": {"steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 75},
+                {"color": "red", "value": 85}
+              ]}
+            }
+          }
+        },
+        {
+          "id": 8,
+          "title": "SM Clock (MHz)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 6, "x": 18, "y": 16},
+          "targets": [{
+            "expr": "DCGM_FI_DEV_SM_CLOCK",
+            "legendFormat": "{{node}}"
+          }],
+          "fieldConfig": {"defaults": {"unit": "hertz",
+            "custom": {"scaleDistribution": {"type": "linear"}}
+          }}
+        },
+        {
+          "id": 9,
+          "title": "Request Throughput (req/s)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+          "targets": [{
+            "expr": "rate(vllm:e2e_request_latency_seconds_count[5m])",
+            "legendFormat": "requests/s"
+          }],
+          "fieldConfig": {"defaults": {"unit": "reqps"}}
+        },
+        {
+          "id": 10,
+          "title": "ECC Double-Bit Errors (1h rate)",
+          "type": "stat",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+          "targets": [{
+            "expr": "increase(DCGM_FI_DEV_ECC_DBE_VOL_TOTAL[1h])",
+            "legendFormat": "{{node}}"
+          }],
+          "fieldConfig": {
+            "defaults": {"unit": "short",
+              "thresholds": {"steps": [
+                {"color": "green", "value": null},
+                {"color": "red", "value": 1}
+              ]}
+            }
+          }
+        }
+      ]
+    }

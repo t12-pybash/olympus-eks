@@ -3,6 +3,10 @@ kind: Service
 metadata:
   name: vllm
   namespace: olympus
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/metrics"
 spec:
   selector:
     app: vllm

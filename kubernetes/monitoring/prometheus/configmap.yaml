@@ -1,0 +1,135 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    rule_files:
+      - /etc/prometheus/rules/*.yml
+
+    scrape_configs:
+      # DCGM exporter — GPU hardware metrics.
+      # Headless service: Prometheus discovers each pod endpoint individually,
+      # labelling by pod name so per-GPU metrics are distinguishable when
+      # multiple GPU nodes are running.
+      - job_name: dcgm-exporter
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names: [monitoring]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: dcgm-exporter
+          - source_labels: [__meta_kubernetes_pod_node_name]
+            target_label: node
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+
+      # vLLM — inference engine metrics.
+      # vLLM v0.4+ exposes Prometheus metrics at /metrics on the API port.
+      - job_name: vllm
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names: [olympus]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_port]
+            action: replace
+            target_label: __address__
+            regex: (.+)
+            replacement: $1
+          - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+            action: replace
+            regex: (.+?)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+
+  rules.yml: |
+    groups:
+      - name: gpu-inference
+        rules:
+
+          # VRAM: use absolute free bytes, not percentage.
+          # VRAM fragments — percentage can look healthy while allocation fails.
+          - alert: GPUVRAMPressure
+            expr: DCGM_FI_DEV_FB_FREE < 2048
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "GPU VRAM pressure on {{ $labels.node }}"
+              description: "Free VRAM is {{ $value }}MiB (threshold: 2048MiB). KV cache allocation may fail."
+
+          - alert: GPUVRAMCritical
+            expr: DCGM_FI_DEV_FB_FREE < 512
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "GPU VRAM critical on {{ $labels.node }}"
+              description: "Free VRAM is {{ $value }}MiB. OOM imminent."
+
+          # KV cache is the leading indicator for VRAM pressure.
+          # This fires before VRAM_FREE hits the threshold above.
+          - alert: InferenceKVCachePressure
+            expr: vllm:gpu_cache_usage_perc > 0.9
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "vLLM KV cache > 90%"
+              description: "KV cache at {{ $value | humanizePercentage }}. Reduce concurrent requests or context length."
+
+          # GPU idle while requests are queued — silent failure mode.
+          # A crashed vLLM process or stuck decode loop shows green on pod health checks
+          # but stops processing. Queue grows; GPU sits at 0%.
+          - alert: GPUIdleWithQueuedRequests
+            expr: vllm:num_requests_waiting > 0 and DCGM_FI_DEV_GPU_UTIL < 5
+            for: 3m
+            labels:
+              severity: critical
+            annotations:
+              summary: "GPU idle with {{ $value }} requests queued"
+              description: "vLLM has queued requests but GPU utilization is below 5%. Check vLLM logs."
+
+          # TTFT p95 — primary SLO for interactive inference.
+          - alert: InferenceTTFTDegradation
+            expr: histogram_quantile(0.95, rate(vllm:time_to_first_token_seconds_bucket[5m])) > 5
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "TTFT p95 degraded ({{ $value | humanizeDuration }})"
+              description: "95th percentile time-to-first-token exceeds 5s. Check queue depth and KV cache."
+
+          # ECC double-bit errors are uncorrectable and indicate hardware fault.
+          - alert: GPUECCDoubleBitError
+            expr: increase(DCGM_FI_DEV_ECC_DBE_VOL_TOTAL[1h]) > 0
+            labels:
+              severity: critical
+            annotations:
+              summary: "GPU ECC double-bit error on {{ $labels.node }}"
+              description: "Uncorrectable ECC error detected. Node should be drained and inspected."
+
+          # SM clock drop under sustained load indicates thermal throttling.
+          - alert: GPUThermalThrottling
+            expr: DCGM_FI_DEV_SM_CLOCK < 900 and DCGM_FI_DEV_GPU_UTIL > 80
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "GPU thermal throttling suspected on {{ $labels.node }}"
+              description: "SM clock at {{ $value }}MHz under >80% load. Check temperature and airflow."
