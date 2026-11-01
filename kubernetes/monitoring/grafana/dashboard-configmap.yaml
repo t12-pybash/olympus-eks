@@ -125,7 +125,7 @@ data:
           "type": "gauge",
           "gridPos": {"h": 8, "w": 6, "x": 0, "y": 16},
           "targets": [{
-            "expr": "vllm:gpu_cache_usage_perc * 100",
+            "expr": "(vllm:gpu_cache_usage_perc or vector(0)) * 100",
             "legendFormat": "KV cache"
           }],
           "fieldConfig": {

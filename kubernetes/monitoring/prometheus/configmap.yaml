@@ -80,7 +80,7 @@ data:
           # KV cache is the leading indicator for VRAM pressure.
           # This fires before VRAM_FREE hits the threshold above.
           - alert: InferenceKVCachePressure
-            expr: vllm:gpu_cache_usage_perc > 0.9
+            expr: (vllm:gpu_cache_usage_perc or vector(0)) > 0.9
             for: 5m
             labels:
               severity: warning

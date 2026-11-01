@@ -20,7 +20,7 @@ terraform {
     bucket         = "olympus-eks-tfstate"
     key            = "terraform.tfstate"
     region         = "eu-west-1"
-    dynamodb_table = "olympus-eks-tflock"
+    use_lockfile = true
     encrypt        = true
   }
 }
