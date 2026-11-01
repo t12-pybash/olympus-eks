@@ -13,7 +13,7 @@ data:
       - /etc/prometheus/rules/*.yml
 
     scrape_configs:
-      # DCGM exporter — GPU hardware metrics.
+      # DCGM exporter: GPU hardware metrics.
       # Headless service: Prometheus discovers each pod endpoint individually,
       # labelling by pod name so per-GPU metrics are distinguishable when
       # multiple GPU nodes are running.
@@ -31,7 +31,7 @@ data:
           - source_labels: [__meta_kubernetes_pod_name]
             target_label: pod
 
-      # vLLM — inference engine metrics.
+      # vLLM: inference engine metrics.
       # vLLM v0.4+ exposes Prometheus metrics at /metrics on the API port.
       - job_name: vllm
         kubernetes_sd_configs:
@@ -58,7 +58,7 @@ data:
         rules:
 
           # VRAM: use absolute free bytes, not percentage.
-          # VRAM fragments — percentage can look healthy while allocation fails.
+          # VRAM fragments: percentage can look healthy while allocation fails.
           - alert: GPUVRAMPressure
             expr: DCGM_FI_DEV_FB_FREE < 2048
             for: 2m
@@ -88,7 +88,7 @@ data:
               summary: "vLLM KV cache > 90%"
               description: "KV cache at {{ $value | humanizePercentage }}. Reduce concurrent requests or context length."
 
-          # GPU idle while requests are queued — silent failure mode.
+          # GPU idle while requests are queued, silent failure mode.
           # A crashed vLLM process or stuck decode loop shows green on pod health checks
           # but stops processing. Queue grows; GPU sits at 0%.
           - alert: GPUIdleWithQueuedRequests
@@ -100,7 +100,7 @@ data:
               summary: "GPU idle with {{ $value }} requests queued"
               description: "vLLM has queued requests but GPU utilization is below 5%. Check vLLM logs."
 
-          # TTFT p95 — primary SLO for interactive inference.
+          # TTFT p95: primary SLO for interactive inference.
           - alert: InferenceTTFTDegradation
             expr: histogram_quantile(0.95, rate(vllm:time_to_first_token_seconds_bucket[5m])) > 5
             for: 5m

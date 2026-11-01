@@ -68,7 +68,7 @@ async def send_request(session: aiohttp.ClientSession, request_id: int):
         if ttft:
             stats["ttfts"].append(ttft * 1000)
         stats["e2e_latencies"].append(e2e * 1000)
-        print(f"[{request_id}] done — TTFT: {ttft*1000:.0f}ms, e2e: {e2e*1000:.0f}ms")
+        print(f"[{request_id}) done  TTFT: {ttft*1000:.0f}ms, e2e: {e2e*1000:.0f}ms")
 
     except Exception as e:
         stats["errors"] += 1
@@ -83,7 +83,7 @@ async def worker(session: aiohttp.ClientSession, worker_id: int, end_time: float
 
 
 async def main():
-    print(f"KV cache stress test — {CONCURRENCY} workers, {DURATION_SECONDS}s")
+    print(f"KV cache stress test: {CONCURRENCY} workers, {DURATION_SECONDS}s")
     print(f"System prompt + user prompt forces long KV cache occupancy per request")
     print("Watch: kubectl port-forward -n olympus svc/vllm 8000:8000")
     print("Metrics: curl http://localhost:8000/metrics | grep kv_cache\n")

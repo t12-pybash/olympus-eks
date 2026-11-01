@@ -18,7 +18,7 @@ spec:
     spec:
       # Only schedule on GPU nodes provisioned by the gpu-small NodePool.
       # On a Karpenter cluster this means the DaemonSet pod provisions and
-      # deprovisions alongside the GPU node — zero idle cost.
+      # deprovisions alongside the GPU node, zero idle cost.
       nodeSelector:
         role: gpu-small
       tolerations:

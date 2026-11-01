@@ -1,6 +1,6 @@
 # olympus-eks
 
-Production-pattern GPU inference on AWS EKS — part of the [Olympus platform](https://t-12.io).
+Production-pattern GPU inference on AWS EKS. Part of the [Olympus platform](https://t-12.io).
 
 Provisions the infrastructure for running vLLM on GPU nodes, managed by Karpenter for on-demand spot provisioning and scale-to-zero. LiteLLM sits in front as an OpenAI-compatible router.
 
@@ -12,10 +12,10 @@ Provisions the infrastructure for running vLLM on GPU nodes, managed by Karpente
 |---|---|
 | Cloud | AWS EKS |
 | IaC | Terraform ~1.6, modular VPC / EKS / Karpenter |
-| GPU Autoscaling | Karpenter — g4dn.xlarge/2xlarge spot, scale-to-zero |
+| GPU Autoscaling | Karpenter: g4dn.xlarge/2xlarge spot, scale-to-zero |
 | Inference | vLLM (OpenAI-compatible API) |
 | Router | LiteLLM |
-| CI | GitLab CI — validate → plan → apply (manual gate) |
+| CI | GitLab CI: validate → plan → apply (manual gate) |
 | State | S3 + DynamoDB lock |
 
 ---
@@ -112,16 +112,16 @@ Cost
 
 ## Deployment Notes
 
-Real-world gotchas from the initial deploy — documented so the second run is clean.
+Real-world gotchas from the initial deploy, documented so the second run is clean.
 
 ### AWS account setup (new accounts)
 
-- **Upgrade to paid plan** before applying — the free plan blocks t3.medium and all G instances
+- **Upgrade to paid plan** before applying. The free plan blocks t3.medium and all G instances
 - **Request GPU quotas in the correct region** (eu-west-1) before running `terraform apply`:
   - Service Quotas → EC2 → *Running On-Demand G and VT instances* → request 4 vCPUs
   - Service Quotas → EC2 → *All G and VT Spot Instance Requests* → request 4 vCPUs
-  - New accounts are denied by default; appeal with a use case description — approved same day
-- **Create EC2 Spot service-linked role** — new accounts don't have it:
+  - New accounts are denied by default; appeal with a use case description. Approved same day
+- **Create EC2 Spot service-linked role**: new accounts don't have it:
   ```bash
   aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
   ```
@@ -153,11 +153,11 @@ kubectl create secret generic litellm-secrets \
   --from-literal=master-key=sk-olympus-$(openssl rand -hex 16)
 ```
 
-HuggingFace token requires access to `mistralai/Mistral-7B-Instruct-v0.3` — accept the model license at huggingface.co first.
+HuggingFace token requires access to `mistralai/Mistral-7B-Instruct-v0.3`. Accept the model license at huggingface.co first.
 
 ### Karpenter Helm timeout
 
-Terraform's Helm provider times out at 5 minutes; Karpenter pods take longer to pass readiness on first install. The timeout error is a false alarm — check pod status directly:
+Terraform's Helm provider times out at 5 minutes; Karpenter pods take longer to pass readiness on first install. The timeout error is a false alarm. Check pod status directly:
 
 ```bash
 kubectl get pods -n karpenter
@@ -175,14 +175,14 @@ kubectl apply -f kubernetes/vllm/                  # vLLM deployment
 kubectl apply -f kubernetes/litellm/               # LiteLLM deployment
 ```
 
-### Terraform state — use remote backend from day one
+### Terraform state: use remote backend from day one
 
-In the first deployment of this cluster, Terraform state was stored locally (`terraform.tfstate` on disk). The state files were lost before teardown. Running `terraform destroy` returned "No changes. Resources: 0 destroyed." — because with an empty state, Terraform believes nothing exists.
+In the first deployment of this cluster, Terraform state was stored locally (`terraform.tfstate` on disk). The state files were lost before teardown. Running `terraform destroy` returned "No changes. Resources: 0 destroyed." With an empty state, Terraform believes nothing exists.
 
 Manual teardown required deleting every resource individually through the AWS CLI:
 
 ```bash
-# Order matters — dependencies must be deleted bottom-up
+# Order matters: dependencies must be deleted bottom-up
 kubectl delete nodeclaims --all
 aws eks delete-nodegroup --cluster-name olympus-eks --nodegroup-name olympus-eks-system --region eu-west-1
 aws eks wait nodegroup-deleted --cluster-name olympus-eks --nodegroup-name olympus-eks-system --region eu-west-1
@@ -194,10 +194,10 @@ aws eks wait cluster-deleted --name olympus-eks --region eu-west-1
 
 This took 20 minutes and required looking up each resource ID from the AWS console.
 
-**Mitigation:** Bootstrap the S3 backend before running `terraform init`. The `Deploy` section above includes this as the first step. Never skip it — losing state means losing the ability to use Terraform for teardown.
+**Mitigation:** Bootstrap the S3 backend before running `terraform init`. The `Deploy` section above includes this as the first step. Never skip it. Losing state means losing the ability to use Terraform for teardown.
 
 ## Related
 
-- Argus — autonomous SRE agent for the Olympus platform
-- t-12.io — write-ups on the full stack
+- Argus: autonomous SRE agent for the Olympus platform
+- t-12.io: write-ups on the full stack
   EOF

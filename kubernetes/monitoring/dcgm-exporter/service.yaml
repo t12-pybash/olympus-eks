@@ -16,4 +16,4 @@ spec:
     - name: metrics
       port: 9400
       targetPort: 9400
-  clusterIP: None  # Headless — Prometheus discovers individual pod IPs
+  clusterIP: None  # Headless: Prometheus discovers individual pod IPs
