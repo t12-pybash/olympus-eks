@@ -57,19 +57,21 @@ data:
       - name: gpu-inference
         rules:
 
-          # VRAM: use absolute free bytes, not percentage.
-          # VRAM fragments: percentage can look healthy while allocation fails.
+          # VRAM: alert on absolute free bytes.
+          # vLLM pre-allocates ~90% of VRAM at startup (--gpu-memory-utilization default).
+          # On a 16GiB T4 that leaves ~1.6GiB free at baseline. Set thresholds below that
+          # baseline or they fire permanently. Tune to your gpu-memory-utilization setting.
           - alert: GPUVRAMPressure
-            expr: DCGM_FI_DEV_FB_FREE < 2048
+            expr: DCGM_FI_DEV_FB_FREE < 1024
             for: 2m
             labels:
               severity: warning
             annotations:
               summary: "GPU VRAM pressure on {{ $labels.node }}"
-              description: "Free VRAM is {{ $value }}MiB (threshold: 2048MiB). KV cache allocation may fail."
+              description: "Free VRAM is {{ $value }}MiB (threshold: 1024MiB). Non-vLLM allocation may fail."
 
           - alert: GPUVRAMCritical
-            expr: DCGM_FI_DEV_FB_FREE < 512
+            expr: DCGM_FI_DEV_FB_FREE < 256
             for: 1m
             labels:
               severity: critical
