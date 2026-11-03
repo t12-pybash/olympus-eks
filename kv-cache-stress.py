@@ -9,11 +9,15 @@ import asyncio
 import time
 import aiohttp
 import json
+import requests
 
 VLLM_URL = "http://localhost:8000/v1/chat/completions"
+PROMETHEUS_URL = "http://localhost:9090/api/v1/query"
 MODEL = "TheBloke/Mistral-7B-Instruct-v0.2-AWQ"
 CONCURRENCY = 32
 DURATION_SECONDS = 180
+COOLDOWN_POLL_INTERVAL = 5
+COOLDOWN_TIMEOUT = 300
 
 # Very long input prompt to front-load KV cache blocks on prefill (~1500 tokens)
 SYSTEM_PROMPT = " ".join(["Kubernetes is a container orchestration system."] * 150)
@@ -82,6 +86,52 @@ async def worker(session: aiohttp.ClientSession, worker_id: int, end_time: float
         req_id += 1
 
 
+def query_prometheus(metric: str) -> float:
+    try:
+        r = requests.get(PROMETHEUS_URL, params={"query": metric}, timeout=5)
+        result = r.json()["data"]["result"]
+        return float(result[0]["value"][1]) if result else 0.0
+    except Exception:
+        return 0.0
+
+
+def cooldown_phase() -> dict:
+    print("\n--- Cooldown phase: load stopped, waiting for recovery ---")
+    load_stop_time = time.time()
+    queue_drained_at = None
+    cache_recovered_at = None
+
+    while time.time() - load_stop_time < COOLDOWN_TIMEOUT:
+        elapsed = time.time() - load_stop_time
+        waiting = query_prometheus("vllm:num_requests_waiting")
+        kv_cache = query_prometheus("(vllm:gpu_cache_usage_perc or vector(0))") * 100
+
+        print(f"  t+{elapsed:5.0f}s  queue={waiting:.0f}  kv_cache={kv_cache:.1f}%")
+
+        if queue_drained_at is None and waiting == 0:
+            queue_drained_at = elapsed
+            print(f"  Queue drained at t+{elapsed:.0f}s")
+
+        if cache_recovered_at is None and kv_cache < 5.0:
+            cache_recovered_at = elapsed
+            print(f"  KV cache recovered (<5%) at t+{elapsed:.0f}s")
+
+        if queue_drained_at is not None and cache_recovered_at is not None:
+            break
+
+        time.sleep(COOLDOWN_POLL_INTERVAL)
+
+    if queue_drained_at is None:
+        print(f"  Queue did not drain within {COOLDOWN_TIMEOUT}s")
+    if cache_recovered_at is None:
+        print(f"  KV cache did not recover within {COOLDOWN_TIMEOUT}s")
+
+    return {
+        "queue_drain_s": queue_drained_at,
+        "cache_recovery_s": cache_recovered_at,
+    }
+
+
 async def main():
     print(f"KV cache stress test: {CONCURRENCY} workers, {DURATION_SECONDS}s")
     print(f"System prompt + user prompt forces long KV cache occupancy per request")
@@ -111,6 +161,13 @@ async def main():
 
     throughput = stats["completed"] / DURATION_SECONDS
     print(f"Throughput: {throughput:.2f} req/s")
+
+    recovery = cooldown_phase()
+    print("\n--- Recovery ---")
+    if recovery["queue_drain_s"] is not None:
+        print(f"Queue drained:    {recovery['queue_drain_s']:.0f}s after load stopped")
+    if recovery["cache_recovery_s"] is not None:
+        print(f"KV cache <5%:     {recovery['cache_recovery_s']:.0f}s after load stopped")
 
 
 if __name__ == "__main__":
